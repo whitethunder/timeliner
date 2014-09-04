@@ -1,0 +1,10 @@
+.tag_switch_container {
+  margin: 20px auto;
+  width: 900px;
+}
+
+.tag_switch {
+  cursor: pointer;
+  font-size: 18px;
+  padding-left: 10px;
+}
