@@ -5,12 +5,13 @@ require 'redcarpet'
 require 'set'
 
 class TimelineGenerator
-  attr_reader :csv_filename, :html, :markdown, :output_file, :timeline
+  attr_reader :csv_filename, :html, :markdown, :output_file, :tags, :timeline
   def initialize(input_file, output_file)
     @csv_filename = input_file
     @html = "\n<!-- BEGIN TIMELINE CONTENT -->\n"
     @markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML)
     @output_file = output_file
+    @tags = Set.new
     @timeline = {}
   end
 
@@ -27,24 +28,43 @@ class TimelineGenerator
     CSV.foreach(csv_filename, headers: true) do |row|
       timeline[row['Date']] ||= []
       timeline[row['Date']] << row
+      row['Tag'] && row['Tag'].split('/').each { |tag| tags << tag }
     end
   end
 
-  def tag_output(tags)
+  def tag(tags)
     return '' unless tags
     tags.split('/').map { |tag| "[#{tag}]" }.join(' ')
   end
 
+  def tag_classes(tags)
+    return '' unless tags
+    tags.split('/').map { |tag| "#{tag.downcase}-tag" }.join(' ')
+  end
+
+  def multiple_tags_classes(tags)
+    return '' unless tags
+    tags.map { |t| tag_classes(t) }.join(' ')
+  end
+
   def generate_html
+    html << "  <div class=\"tag_switch_container\">\n"
+    tags.sort.each do |tag|
+      html << "    <span class=\"tag_switch\">#{tag}</span>\n"
+    end
+    html << "  </div>\n"
+
+    html << "\n  <div id=\"timelineContainer\" class=\"timelineContainer\">\n"
+
     timeline.keys.each do |date|
         html << <<-HTML
-    <div class="timelineMajor">
+    <div class="timelineMajor #{ multiple_tags_classes(timeline[date].map { |row| row['Tag']}) }">
       <h2 class="timelineMajorMarker"><span>#{date}</span></h2>
         HTML
       timeline[date].each do |row|
         html << <<-HTML
-      <dl class="timelineMinor">
-        <dt><a>#{tag_output(row['Tag'])} #{row['Headline']}</a></dt>
+      <dl class="timelineMinor #{tag_classes(row['Tag'])}">
+        <dt><a>#{tag(row['Tag'])} #{row['Headline']}</a></dt>
         <dd class="timelineEvent" style="display: none;">
           #{markdown.render(row['Content'])}
         </dd>
@@ -57,6 +77,7 @@ class TimelineGenerator
 
       HTML
     end
+    html << "  </div>\n"
     html << "<!-- END TIMELINE CONTENT -->\n"
   end
 
